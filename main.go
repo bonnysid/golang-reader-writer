@@ -2,25 +2,17 @@ package main
 
 import (
 	"fmt"
-	"sync"
 )
 
-var (
-	buffer string
-	mutex  sync.Mutex
-)
+var buffer = make(chan string)
 
 func writer(message string) {
-	mutex.Lock()
-	buffer = message
-	fmt.Println("Писатель записал:", buffer)
-	mutex.Unlock()
+	buffer <- message
+	fmt.Println("Писатель записал:", message)
 }
 
 func reader(n int) {
-	mutex.Lock()
-	fmt.Printf("Читатель №%d: %s\n", n, buffer)
-	mutex.Unlock()
+	fmt.Printf("Читатель №%d: %s\n", n, <-buffer)
 }
 
 func main() {
