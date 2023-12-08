@@ -2,17 +2,23 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
 var buffer string
+var mutex = &sync.Mutex{}
 
 func writer(message string) {
+	mutex.Lock()
 	buffer = message
+	mutex.Unlock()
 }
 
 func reader() {
+	mutex.Lock()
 	fmt.Println("Read:", buffer)
+	mutex.Unlock()
 }
 
 func main() {
