@@ -4,15 +4,20 @@ import (
 	"fmt"
 )
 
-var buffer = make(chan string)
+var buffer *string
 
 func writer(message string) {
-	buffer <- message
-	fmt.Println("Писатель записал:", message)
+	if buffer == nil {
+		buffer = &message
+		fmt.Println("Писатель записал:", message)
+	}
 }
 
 func reader(n int) {
-	fmt.Printf("Читатель №%d: %s\n", n, <-buffer)
+	if buffer != nil {
+		fmt.Printf("Читатель №%d: %s\n", n, *buffer)
+		buffer = nil
+	}
 }
 
 func main() {
