@@ -2,44 +2,72 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
-var buffer *string
+const (
+	numMessages   = 10 // Число сообщений
+	messageLength = 5  // Длина сообщения
+)
 
-func writer(message string) {
-	if buffer == nil {
-		buffer = &message
-		fmt.Println("Писатель записал:", message)
+var (
+	buffer       = make([]byte, messageLength)
+	readersMutex = sync.Mutex{}
+	writersMutex = sync.Mutex{}
+	readersCond  = sync.NewCond(&readersMutex)
+	writersCond  = sync.NewCond(&writersMutex)
+)
+
+func writer(id int) {
+	for i := 0; i < numMessages; i++ {
+		writersMutex.Lock()
+		for buffer[0] != 0 {
+			writersCond.Wait()
+		}
+		// Запись сообщения в буфер
+		for j := 0; j < messageLength; j++ {
+			buffer[j] = byte('A' + id*100 + i) // Просто пример данных для записи
+		}
+		readersCond.Broadcast() // Сообщаем читателям, что буфер готов
+		writersMutex.Unlock()
 	}
 }
 
-func reader(n int) {
-	if buffer != nil {
-		fmt.Printf("Читатель №%d: %s\n", n, *buffer)
-		buffer = nil
+func reader(id int) {
+	for i := 0; i < numMessages; i++ {
+		readersMutex.Lock()
+		for buffer[0] == 0 {
+			readersCond.Wait()
+		}
+		// Чтение сообщения из буфера
+		message := string(buffer[:messageLength])
+		fmt.Printf("Reader %d read: %s\n", id, message)
+		// Сбрасываем буфер
+		for j := 0; j < messageLength; j++ {
+			buffer[j] = 0
+		}
+		writersCond.Broadcast() // Сообщаем писателям, что буфер освободился
+		readersMutex.Unlock()
 	}
 }
 
 func main() {
-	numMessages := 5
-	numReaders := 2
-	writers := [3]string{"A", "B", "C"}
+	var wg sync.WaitGroup
+	wg.Add(5) // 3 писателя + 2 читателя
 
-	// Запуск писателей
-	go func() {
-		for _, w := range writers {
-			go func(w string) {
-				for i := 0; i < numMessages; i++ {
-					writer(fmt.Sprintf("%s%d", w, i+1))
-				}
-			}(w)
-		}
-	}()
-
-	// Запуск читателей
-	for {
-		for i := 0; i < numReaders; i++ {
-			go reader(i + 1)
-		}
+	for i := 0; i < 3; i++ {
+		go func(id int) {
+			defer wg.Done()
+			writer(id)
+		}(i)
 	}
+
+	for i := 0; i < 2; i++ {
+		go func(id int) {
+			defer wg.Done()
+			reader(id)
+		}(i)
+	}
+
+	wg.Wait()
 }
