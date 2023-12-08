@@ -3,45 +3,46 @@ package main
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
-var buffer string
-var mutex = &sync.Mutex{}
+var (
+	buffer string
+	mutex  sync.Mutex
+)
 
 func writer(message string) {
 	mutex.Lock()
 	buffer = message
+	fmt.Println("Писатель записал:", buffer)
 	mutex.Unlock()
 }
 
-func reader() {
+func reader(n int) {
 	mutex.Lock()
-	fmt.Println("Read:", buffer)
+	fmt.Printf("Читатель №%d: %s\n", n, buffer)
 	mutex.Unlock()
 }
 
 func main() {
-	numWriters := 3
+	numMessages := 5
 	numReaders := 2
+	writers := [3]string{"A", "B", "C"}
 
-	for i := 0; i < numWriters; i++ {
-		go func(id int) {
-			for j := 0; j < 3; j++ {
-				writer(fmt.Sprintf("Writer %d: Message %d", id, j))
-				time.Sleep(time.Millisecond * 100) // Задержка для имитации работы
-			}
-		}(i)
+	// Запуск писателей
+	go func() {
+		for _, w := range writers {
+			go func(w string) {
+				for i := 0; i < numMessages; i++ {
+					writer(fmt.Sprintf("%s%d", w, i+1))
+				}
+			}(w)
+		}
+	}()
+
+	// Запуск читателей
+	for {
+		for i := 0; i < numReaders; i++ {
+			go reader(i + 1)
+		}
 	}
-
-	for i := 0; i < numReaders; i++ {
-		go func(id int) {
-			for {
-				reader()
-				time.Sleep(time.Millisecond * 200) // Задержка для имитации работы
-			}
-		}(i)
-	}
-
-	time.Sleep(time.Second * 2)
 }
