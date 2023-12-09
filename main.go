@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"sync"
 )
 
 var buffer *string
+var wg sync.WaitGroup
 
 func writer(message string) {
 	if buffer == nil {
@@ -28,13 +30,17 @@ func main() {
 	// Запуск писателей
 	go func() {
 		for _, w := range writers {
+			wg.Add(1)
 			go func(w string) {
+				defer wg.Done()
 				for i := 0; i < numMessages; i++ {
 					writer(fmt.Sprintf("%s%d", w, i+1))
 				}
 			}(w)
 		}
 	}()
+
+	wg.Wait()
 
 	// Запуск читателей
 	for {
